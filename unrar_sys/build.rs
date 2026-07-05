@@ -37,8 +37,6 @@ fn main() {
         "arcread",
         "unicode",
         "system",
-        #[cfg(windows)]
-        "isnt",
         "crypt",
         "crc",
         "rawread",
@@ -72,14 +70,13 @@ fn main() {
         "scantree",
         "dll",
         "qopen",
-        "largepage",  // New in unrar 7.x for large page memory allocation
-        #[cfg(windows)]
-        "motw",       // New in unrar 7.x for Mark of the Web support (Windows only)
+        "largepage",
+        "isnt",
+        "motw",
     ].iter().map(|&s| format!("vendor/unrar/{s}.cpp")).collect();
 
-    if is_windows {
-        files.push("vendor/unrar/isnt.cpp".into());
-        files.push("vendor/unrar/motw.cpp".into());
+    if !is_windows {
+        files.retain(|f| !f.contains("/isnt.cpp") && !f.contains("/motw.cpp"));
     }
 
     let mut build = cc::Build::new();
