@@ -8,17 +8,23 @@ fn main() {
     // any compiled translation unit, would silently use stale object files.
     println!("cargo:rerun-if-changed=vendor/unrar");
 
-    if cfg!(windows) {
+    let target = std::env::var("TARGET").unwrap_or_default();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_vendor = std::env::var("CARGO_CFG_TARGET_VENDOR").unwrap_or_default();
+    let is_windows = target.contains("windows");
+
+    if is_windows {
         println!("cargo:rustc-flags=-lpowrprof");
         println!("cargo:rustc-link-lib=shell32");
-        println!("cargo:rustc-link-lib=advapi32"); 
-        if cfg!(target_env = "gnu") {
+        println!("cargo:rustc-link-lib=advapi32");
+        if target.contains("gnu") {
             println!("cargo:rustc-link-lib=pthread");
         }
-    } else {
+    } else if !target.contains("android") {
         println!("cargo:rustc-link-lib=pthread");
     }
-    let files: Vec<String> = [
+
+    let mut files: Vec<String> = [
         "strlist",
         "strfn",
         "pathfn",
@@ -70,6 +76,12 @@ fn main() {
         #[cfg(windows)]
         "motw",       // New in unrar 7.x for Mark of the Web support (Windows only)
     ].iter().map(|&s| format!("vendor/unrar/{s}.cpp")).collect();
+
+    if is_windows {
+        files.push("vendor/unrar/isnt.cpp".into());
+        files.push("vendor/unrar/motw.cpp".into());
+    }
+
     let mut build = cc::Build::new();
     build
         .cpp(true) // Switch to C++ library compilation.
