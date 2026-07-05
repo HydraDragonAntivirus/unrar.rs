@@ -84,8 +84,6 @@ fn main() {
         .cpp(true) // Switch to C++ library compilation.
         .opt_level(2)
         .std("c++14")
-        // by default cc crate tries to link against dynamic stdlib, which causes problems on windows-gnu target
-        .cpp_link_stdlib(None)
         .warnings(false)
         .extra_warnings(false)
         .flag_if_supported("-stdlib=libc++")
@@ -105,6 +103,20 @@ fn main() {
         .define("_LARGEFILE_SOURCE", None)
         .define("RAR_SMP", None)
         .define("RARDLL", None);
+
+    // cc's default of linking the dynamic stdlib breaks the windows-gnu
+    // target, so disable it there. On Android the NDK clang driver won't
+    // add libc++_shared on its own once cpp_link_stdlib is touched by the
+    // windows-gnu branch above being skipped, so link it explicitly —
+    // otherwise std::* symbols (e.g. std::length_error's typeinfo, thrown by
+    // vendor/unrar's std::vector/std::string usage) end up undefined with no
+    // NEEDED libc++_shared.so entry, and the final .so fails to load at
+    // runtime on-device instead of failing at link time.
+    if target.contains("windows") && target.contains("gnu") {
+        build.cpp_link_stdlib(None);
+    } else if target_os == "android" {
+        build.cpp_link_stdlib("c++_shared");
+    }
 
     // UNRAR_NG_FORCE_UTF8 commits Linux/BSD wide<->8bit filename conversions to
     // the same locale-independent WideToUtf / UtfToWide path that macOS has
